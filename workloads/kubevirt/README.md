@@ -51,19 +51,19 @@ kubectl get placementdecisions -n vm-pvc --context hub \
 To inspect the VM and DR resources use:
 
 ```sh
-watch -n 5 kubectl get vm,vmi,pod,pvc,vrg,vr -n vm-pvc --context dr1
+watch -n 5 kubectl get vm,vmi,pod,pvc,vrg,vr -n vm-pvc --context cluster1
 ```
 
 Example output:
 
 ```console
-Every 5.0s: kubectl get vm,vmi,pod,pvc,vrg,vr -n vm-pvc --context dr1
+Every 5.0s: kubectl get vm,vmi,pod,pvc,vrg,vr -n vm-pvc --context cluster1
 
 NAME                                   AGE     STATUS    READY
 virtualmachine.kubevirt.io/vm   5m51s   Running   True
 
 NAME                                           AGE     PHASE     IP            NODENAME   READY
-virtualmachineinstance.kubevirt.io/vm   5m51s   Running   10.244.0.61   dr1        True
+virtualmachineinstance.kubevirt.io/vm   5m51s   Running   10.244.0.61   cluster1        True
 
 NAME                                READY   STATUS    RESTARTS   AGE
 pod/virt-launcher-vm-chsrh   1/1     Running   0          5m51s
@@ -79,7 +79,7 @@ We can inspect the underlying RBD image backing the VM PVC using the
 `rook-ceph` kubectl krew plugin:
 
 ```
-kubectl rook-ceph --context dr1 rbd du -p replicapool
+kubectl rook-ceph --context cluster1 rbd du -p replicapool
 ```
 
 Example output:
@@ -108,7 +108,7 @@ kubectl apply -k dr/kubevirt/vm-pvc-k8s-regional --context hub
 ```
 
 At this point *Ramen* controls the VM placement and protects the VM data
-by replicating it to the secondary cluster ("dr2").
+by replicating it to the secondary cluster ("cluster2").
 
 To wait until the VM data is replicating to the secondary cluster, wait
 for the `PeerReady` condition:
@@ -136,26 +136,26 @@ Example output:
 Every 5.0s: kubectl get drpc -n vm-pvc --context hub -o wide
 
 NAME            AGE   PREFERREDCLUSTER   FAILOVERCLUSTER   DESIREDSTATE   CURRENTSTATE   PROGRESSION   START TIME             DURATION       PEER READY
-drpc   51s   dr1                                                 Deployed	 Completed     2023-11-19T20:26:53Z   5.035609263s   True
+drpc   51s   cluster1                                                 Deployed	 Completed     2023-11-19T20:26:53Z   5.035609263s   True
 ```
 
 To get more details we can watch the VM and DR resources on the managed
 cluster:
 
 ```sh
-watch -n 5 kubectl get vm,vmi,pod,pvc,vrg,vr -n vm-pvc --context dr1
+watch -n 5 kubectl get vm,vmi,pod,pvc,vrg,vr -n vm-pvc --context cluster1
 ```
 
 Example output:
 
 ```console
-Every 5.0s: kubectl get vm,vmi,pod,pvc,vrg,vr -n vm-pvc --context dr1
+Every 5.0s: kubectl get vm,vmi,pod,pvc,vrg,vr -n vm-pvc --context cluster1
 
 NAME                                   AGE   STATUS    READY
 virtualmachine.kubevirt.io/vm   16m   Running   True
 
 NAME                                           AGE   PHASE     IP            NODENAME   READY
-virtualmachineinstance.kubevirt.io/vm   16m   Running   10.244.0.61   dr1        True
+virtualmachineinstance.kubevirt.io/vm   16m   Running   10.244.0.61   cluster1        True
 
 NAME                                READY   STATUS    RESTARTS   AGE
 pod/virt-launcher-vm-chsrh   1/1     Running   0          16m
@@ -174,7 +174,7 @@ The cirros VM used by this example includes a logger service logging a
 message every 10 seconds:
 
 ```sh
-virtctl ssh cirros@vm -n vm-pvc --known-hosts= --context dr1 -c 'head /var/log/ramen.log'
+virtctl ssh cirros@vm -n vm-pvc --known-hosts= --context cluster1 -c 'head /var/log/ramen.log'
 ```
 
 Example output:
@@ -193,10 +193,10 @@ Sun Nov 19 20:14:50 UTC 2023 UPDATE
 ```
 
 Ramen set up RBD mirroring for the underlying RBD image. The same image
-is created on the secondary cluster ("dr2"):
+is created on the secondary cluster ("cluster2"):
 
 ```
-kubectl rook-ceph --context dr2 rbd du -p replicapool
+kubectl rook-ceph --context cluster2 rbd du -p replicapool
 ```
 
 Example output:
@@ -216,10 +216,10 @@ The VM will start on the other cluster using the data from the last
 replication. Data since the last replication is lost.
 
 To simulate a disaster we can pause the minkube VM running cluster
-`dr1`:
+`cluster1`:
 
 ```sh
-virsh -c qemu:///system suspend dr1
+virsh -c qemu:///system suspend cluster1
 ```
 
 To start `Failover` action, patch the VM `DRPlacementControl` resource
@@ -227,20 +227,20 @@ to set `action` and `failoverCluster`:
 
 ```sh
 kubectl patch drpc drpc \
-    --patch '{"spec": {"action": "Failover", "failoverCluster": "dr2"}}' \
+    --patch '{"spec": {"action": "Failover", "failoverCluster": "cluster2"}}' \
     --type merge \
     --namespace vm-pvc \
     --context hub
 ```
 
-The VM will start on the failover cluster ("dr2"). Nothing will change
-on the primary cluster ("dr1") since it is still paused.
+The VM will start on the failover cluster ("cluster2"). Nothing will change
+on the primary cluster ("cluster1") since it is still paused.
 
 Inspecting the `/var/log/ramen.log` via SSH show how much data was lost
 during the failover:
 
 ```sh
-virtctl ssh cirros@vm -n vm-pvc --known-hosts= --context dr2 -c 'tail -f /var/log/ramen.log'
+virtctl ssh cirros@vm -n vm-pvc --known-hosts= --context cluster2 -c 'tail -f /var/log/ramen.log'
 ```
 
 Example output:
@@ -264,12 +264,12 @@ we need to recover the primary cluster. In this example we can resume
 the minikube VM:
 
 ```sh
-virsh -c qemu:///system resume dr1
+virsh -c qemu:///system resume cluster1
 ```
 
 *Ramen* will clean up the VM resources from the primary cluster and
-enable RBD mirroring from the secondary cluster ("dr2") to the primary
-cluster ("dr1").
+enable RBD mirroring from the secondary cluster ("cluster2") to the primary
+cluster ("cluster1").
 
 To wait until the VM data is replicated again to the other cluster:
 
@@ -296,7 +296,7 @@ if needed, `preferredCluster`.
 
 ```sh
 kubectl patch drpc drpc \
-    --patch '{"spec": {"action": "Relocate", "preferredCluster": "dr1"}}' \
+    --patch '{"spec": {"action": "Relocate", "preferredCluster": "cluster1"}}' \
     --type merge \
     --namespace vm-pvc \
     --context hub
@@ -317,11 +317,11 @@ kubectl wait drpc drpc \
 ```
 
 Inspecting `/var/log/ramen.log` shows that the VM was terminated cleanly
-on the secondary cluster ("dr2") and started on the primary cluster
-("dr1"). No data was lost!
+on the secondary cluster ("cluster2") and started on the primary cluster
+("cluster1"). No data was lost!
 
 ```sh
-virtctl ssh cirros@vm -n vm-pvc --known-hosts= --context dr1 -c 'tail -f /var/log/ramen.log'
+virtctl ssh cirros@vm -n vm-pvc --known-hosts= --context cluster1 -c 'tail -f /var/log/ramen.log'
 ```
 
 Example output:

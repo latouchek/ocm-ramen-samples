@@ -102,10 +102,10 @@ the examples.
 
    The Busybox deployment subscribed resources, like the pod and the PVC
    can be viewed on the ManagedCluster using (example ManagedCluster
-   `dr1`):
+   `cluster1`):
 
    ```
-   kubectl get pod,pvc -n deployment-rbd --context dr1
+   kubectl get pod,pvc -n deployment-rbd --context cluster1
    ```
 
 ## Undeploying a sample application
@@ -176,7 +176,7 @@ kubectl get placementdecisions -n deployment-rbd --context hub \
 
 Ensure that the `Placement` predicates is pointing to the cluster where
 the workload is currently placed. Here is example predicates selecting
-the cluster `dr1`:
+the cluster `cluster1`:
 
 ```
 spec:
@@ -191,7 +191,7 @@ spec:
         - key: name
           operator: In
           values:
-          - dr1
+          - cluster1
 ```
 
 Change the Placement to be reconciled by OCM:
