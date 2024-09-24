@@ -8,7 +8,7 @@ metadata:
     apps.open-cluster-management.io/github-path: PATH
   name: subscription
 spec:
-  channel: ramen-samples/ramen-gitops
+  channel: deployment-rbd/ramen-gitops
   placement:
     placementRef:
       kind: Placement
