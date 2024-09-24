@@ -1,0 +1,15 @@
+apiVersion: apps.open-cluster-management.io/v1
+kind: Channel
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"apps.open-cluster-management.io/v1","kind":"Channel","metadata":{"annotations":{},"name":"ramen-gitops","namespace":"ramen-samples"},"spec":{"pathname":"https://github.com/latouchek/ocm-ramen-samples.git","type":"GitHub"}}
+    open-cluster-management.io/user-group: c3lzdGVtOm1hc3RlcnMsc3lzdGVtOmF1dGhlbnRpY2F0ZWQ=
+    open-cluster-management.io/user-identity: c3lzdGVtOmFkbWlu
+  creationTimestamp: "2024-09-23T16:56:11Z"
+  generation: 1
+  name: ramen-gitops
+  namespace: deployment-rbd
+spec:
+  pathname: https://github.com/latouchek/ocm-ramen-samples.git
+  type: GitHub
